@@ -1,0 +1,868 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文献引用验证与知识库查询系统</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        select.form-control {
+            appearance: none;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+            background-repeat: no-repeat;
+            background-position: right 10px center;
+            background-size: 1em;
+            padding-right: 30px;
+        }        
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 40px;
+            color: white;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .status-bar {
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: 15px;
+            padding: 15px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            color: white;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #ff4757;
+            animation: pulse 2s infinite;
+        }
+
+        .status-dot.connected {
+            background: #2ed573;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.5; }
+            100% { opacity: 1; }
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .card {
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 25px 50px rgba(0,0,0,0.15);
+        }
+
+        .card-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .card-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            color: white;
+        }
+
+        .icon-upload { background: linear-gradient(135deg, #667eea, #764ba2); }
+        .icon-verify { background: linear-gradient(135deg, #f093fb, #f5576c); }
+        .icon-query { background: linear-gradient(135deg, #4facfe, #00f2fe); }
+        .icon-update { background: linear-gradient(135deg, #43e97b, #38f9d7); }
+
+        .card h3 {
+            font-size: 1.3rem;
+            color: #2c3e50;
+            margin-bottom: 5px;
+        }
+
+        .card p {
+            color: #7f8c8d;
+            font-size: 0.9rem;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #2c3e50;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            font-size: 14px;
+            transition: border-color 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .file-upload {
+            position: relative;
+            display: inline-block;
+            width: 100%;
+        }
+
+        .file-upload input[type=file] {
+            position: absolute;
+            opacity: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+
+        .file-upload-label {
+            display: block;
+            padding: 20px;
+            border: 2px dashed #667eea;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background: #f8f9ff;
+        }
+
+        .file-upload-label:hover {
+            border-color: #5a6fd8;
+            background: #f0f2ff;
+        }
+
+        .file-upload-label i {
+            font-size: 2rem;
+            color: #667eea;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: white;
+            border: none;
+            padding: 12px 25px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #95a5a6, #7f8c8d);
+        }
+
+        .results-section {
+            grid-column: 1 / -1;
+            background: rgba(255,255,255,0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+
+        .results-header {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+
+        .results-content {
+            max-height: 500px;
+            overflow-y: auto;
+        }
+
+        .result-item {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-left: 4px solid #667eea;
+        }
+
+        .result-item.success {
+            border-left-color: #2ed573;
+        }
+
+        .result-item.warning {
+            border-left-color: #ffa502;
+        }
+
+        .result-item.error {
+            border-left-color: #ff4757;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 6px;
+            background: #e9ecef;
+            border-radius: 3px;
+            overflow: hidden;
+            margin-top: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            width: 0%;
+            transition: width 0.3s ease;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+                gap: 20px;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .card {
+                padding: 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1><i class="fas fa-book-open"></i> 文献引用验证系统</h1>
+            <p>智能化的学术论文引用验证与知识库查询平台</p>
+        </div>
+
+        <div class="status-bar">
+            <div class="status-indicator">
+                <div class="status-dot" id="statusDot"></div>
+                <span id="statusText">系统未初始化</span>
+            </div>
+            <button class="btn btn-secondary" onclick="initSystem()" id="initBtn">
+                <i class="fas fa-power-off"></i> 初始化系统
+            </button>
+        </div>
+
+        <div class="alert alert-success" id="successAlert"></div>
+        <div class="alert alert-error" id="errorAlert"></div>
+
+        <div class="main-content">
+            <!-- 上传论文卡片 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon icon-upload">
+                        <i class="fas fa-upload"></i>
+                    </div>
+                    <div>
+                        <h3>添加论文</h3>
+                        <p>上传PDF文件到知识库</p>
+                    </div>
+                </div>
+                <form id="uploadForm">
+                    <div class="form-group">
+                        <label>选择PDF文件</label>
+                        <div class="file-upload">
+                            <input type="file" id="paperFiles" multiple accept=".pdf">
+                            <label for="paperFiles" class="file-upload-label">
+                                <i class="fas fa-cloud-upload-alt"></i>
+                                <div>点击选择或拖拽PDF文件</div>
+                                <small>支持多文件上传</small>
+                            </label>
+                        </div>
+                    </div>
+                    <button type="submit" class="btn">
+                        <i class="fas fa-plus"></i> 添加到知识库
+                    </button>
+                </form>
+            </div>
+
+            <!-- 验证引用卡片 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon icon-verify">
+                        <i class="fas fa-check-circle"></i>
+                    </div>
+                    <div>
+                        <h3>验证引用</h3>
+                        <p>检查文章中的引用准确性</p>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>验证方式</label>
+                    <select class="form-control" id="verificationMethod">
+                        <option value="api">调用API</option>
+                        <option value="local">本地大模型</option>
+                    </select>
+                </div>                
+                <form id="verifyForm">
+                    <div class="form-group">
+                        <label>上传文章文件</label>
+                        <div class="file-upload">
+                            <input type="file" id="articleFile" accept=".pdf,.txt">
+                            <label for="articleFile" class="file-upload-label">
+                                <i class="fas fa-file-alt"></i>
+                                <div>选择PDF或TXT文件</div>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>语义相似度阈值</label>
+                        <input type="number" class="form-control" id="simThresh" value="0.05" step="0.01" min="0" max="1">
+                    </div>
+                    <div class="form-group">
+                        <label>关键词重合度阈值</label>
+                        <input type="number" class="form-control" id="keywordThresh" value="0.3" step="0.01" min="0" max="1">
+                    </div>
+                    <button type="submit" class="btn">
+                        <i class="fas fa-search"></i> 开始验证
+                    </button>
+                </form>
+            </div>
+
+            <!-- 查询知识库卡片 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon icon-query">
+                        <i class="fas fa-search"></i>
+                    </div>
+                    <div>
+                        <h3>查询知识库</h3>
+                        <p>搜索相关学术文献</p>
+                    </div>
+                </div>
+                <form id="queryForm">
+                    <div class="form-group">
+                        <label>查询内容</label>
+                        <textarea class="form-control" id="queryText" rows="3" placeholder="输入要查询的内容..."></textarea>
+                    </div>
+                    <div class="form-group">
+                        <label>返回结果数量</label>
+                        <input type="number" class="form-control" id="nResults" value="5" min="1" max="20">
+                    </div>
+                    <div class="form-group">
+                        <label>相似度阈值</label>
+                        <input type="number" class="form-control" id="querySimThresh" value="0.6" step="0.01" min="0" max="1">
+                    </div>
+                    <button type="submit" class="btn">
+                        <i class="fas fa-search"></i> 查询
+                    </button>
+                </form>
+            </div>
+
+            <!-- 更新知识库卡片 -->
+            <div class="card">
+                <div class="card-header">
+                    <div class="card-icon icon-update">
+                        <i class="fas fa-sync-alt"></i>
+                    </div>
+                    <div>
+                        <h3>更新知识库</h3>
+                        <p>重建RAG索引</p>
+                    </div>
+                </div>
+                <p style="margin-bottom: 20px; color: #7f8c8d;">手动更新知识库索引，提高查询性能</p>
+                <button onclick="updateKnowledgeBase()" class="btn">
+                    <i class="fas fa-sync-alt"></i> 更新知识库
+                </button>
+            </div>
+        </div>
+
+        <!-- 结果显示区域 -->
+        <div class="results-section" id="resultsSection" style="display: none;">
+            <div class="results-header">
+                <div class="card-icon icon-query">
+                    <i class="fas fa-chart-bar"></i>
+                </div>
+                <div>
+                    <h3 id="resultsTitle">处理结果</h3>
+                    <p id="resultsSubtitle">详细信息</p>
+                </div>
+            </div>
+            <div class="loading" id="loadingIndicator">
+                <div class="spinner"></div>
+                <p>正在处理，请稍候...</p>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+            </div>
+            <div class="results-content" id="resultsContent"></div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/0.24.0/axios.min.js"></script>
+    <script>
+        let systemInitialized = false;
+
+        // 检查系统状态
+        async function checkStatus() {
+            try {
+                const response = await axios.get('/api/status');
+                systemInitialized = response.data.initialized;
+                updateStatusIndicator();
+            } catch (error) {
+                console.error('状态检查失败:', error);
+            }
+        }
+
+        // 更新状态指示器
+        function updateStatusIndicator() {
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const initBtn = document.getElementById('initBtn');
+
+            if (systemInitialized) {
+                statusDot.classList.add('connected');
+                statusText.textContent = '系统已就绪';
+                initBtn.innerHTML = '<i class="fas fa-check"></i> 系统已初始化';
+                initBtn.disabled = true;
+            } else {
+                statusDot.classList.remove('connected');
+                statusText.textContent = '系统未初始化';
+                initBtn.innerHTML = '<i class="fas fa-power-off"></i> 初始化系统';
+                initBtn.disabled = false;
+            }
+        }
+
+        // 初始化系统
+        async function initSystem() {
+            showLoading('正在初始化系统...');
+            try {
+                const response = await axios.post('/api/init', {
+                    chroma_dir: './chroma_db',
+                    embedding_model: './local_models/all-MiniLM-L6-v2'
+                });
+                
+                if (response.data.success) {
+                    systemInitialized = true;
+                    updateStatusIndicator();
+                    showAlert('系统初始化成功！', 'success');
+                } else {
+                    showAlert('初始化失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('初始化失败: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 显示提示信息
+        function showAlert(message, type) {
+            const alertElement = document.getElementById(type === 'success' ? 'successAlert' : 'errorAlert');
+            alertElement.textContent = message;
+            alertElement.style.display = 'block';
+            
+            setTimeout(() => {
+                alertElement.style.display = 'none';
+            }, 5000);
+        }
+
+        // 显示加载状态
+        function showLoading(message = '正在处理...') {
+            const resultsSection = document.getElementById('resultsSection');
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            resultsSection.style.display = 'block';
+            loadingIndicator.style.display = 'block';
+            loadingIndicator.querySelector('p').textContent = message;
+            resultsContent.innerHTML = '';
+        }
+
+        // 隐藏加载状态
+        function hideLoading() {
+            const loadingIndicator = document.getElementById('loadingIndicator');
+            loadingIndicator.style.display = 'none';
+        }
+
+        // 显示结果
+        function showResults(title, subtitle, content) {
+            const resultsSection = document.getElementById('resultsSection');
+            const resultsTitle = document.getElementById('resultsTitle');
+            const resultsSubtitle = document.getElementById('resultsSubtitle');
+            const resultsContent = document.getElementById('resultsContent');
+            
+            resultsTitle.textContent = title;
+            resultsSubtitle.textContent = subtitle;
+            resultsContent.innerHTML = content;
+            resultsSection.style.display = 'block';
+        }
+
+        // 上传论文表单处理
+        document.getElementById('uploadForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!systemInitialized) {
+                showAlert('请先初始化系统', 'error');
+                return;
+            }
+
+            const fileInput = document.getElementById('paperFiles');
+            if (!fileInput.files.length) {
+                showAlert('请选择要上传的PDF文件', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            for (let file of fileInput.files) {
+                formData.append('files', file);
+            }
+
+            showLoading('正在上传并处理论文...');
+            
+            try {
+                const response = await axios.post('/api/upload_papers', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                if (response.data.success) {
+                    const results = response.data.results;
+                    let content = '<h4>上传结果</h4>';
+                    
+                    results.forEach(result => {
+                        const statusClass = result.success ? 'success' : 'error';
+                        content += `
+                            <div class="result-item ${statusClass}">
+                                <strong>${result.filename}</strong><br>
+                                <span>${result.message}</span>
+                            </div>
+                        `;
+                    });
+                    
+                    const successCount = results.filter(r => r.success).length;
+                    showResults('论文上传完成', `成功: ${successCount}/${results.length}`, content);
+                    showAlert(`成功上传 ${successCount} 篇论文`, 'success');
+                    
+                    // 清空文件选择
+                    fileInput.value = '';
+                } else {
+                    showAlert('上传失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('上传失败: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // 验证引用表单处理
+        document.getElementById('verifyForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!systemInitialized) {
+                showAlert('请先初始化系统', 'error');
+                return;
+            }
+
+            const fileInput = document.getElementById('articleFile');
+            if (!fileInput.files.length) {
+                showAlert('请选择要验证的文章文件', 'error');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+            formData.append('sim_thresh', document.getElementById('simThresh').value);
+            formData.append('keyword_overlap_thresh', document.getElementById('keywordThresh').value);
+            formData.append('verification_method', document.getElementById('verificationMethod').value);
+
+            showLoading('正在验证文章引用...');
+            
+            try {
+                const response = await axios.post('/api/verify_citations', formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+
+                if (response.data.success) {
+                    const results = response.data.results;
+                    let content = `<h4>引用验证结果 (共 ${response.data.total_citations} 条引用)</h4>
+                                <p>验证方式: ${results[0]?.method === 'local' ? '本地大模型' : 'API'}</p>`;
+                    
+                    results.forEach((result, index) => {
+                        let statusClass = 'warning';
+                        if (result.status === 'verified') statusClass = 'success';
+                        else if (result.status === 'not_found' || result.status === 'skipped') statusClass = 'error';
+                        
+                        content += `
+                            <div class="result-item ${statusClass}">
+                                <strong>引用 ${index + 1}: ${result.citation_marker}</strong><br>
+                                <strong>状态:</strong> ${result.status}<br>
+                                ${result.reason ? `<strong>原因:</strong> ${result.reason}<br>` : ''}
+                                ${result.matched_paper ? `<strong>匹配论文:</strong> ${result.matched_paper}<br>` : ''}
+                                ${result.similarity_score !== undefined && result.similarity_score !== null ? `<strong>相似度:</strong> ${result.similarity_score.toFixed(3)}<br>` : ''}
+                                ${result.keyword_overlap !== undefined && result.keyword_overlap !== null ? `<strong>关键词重合度:</strong> ${result.keyword_overlap.toFixed(3)}<br>` : ''}
+                            </div>
+                        `;
+                    });
+                    
+                    const verifiedCount = results.filter(r => r.status === 'verified').length;
+                    showResults('引用验证完成', `验证通过: ${verifiedCount}/${results.length}`, content);
+                    
+                    // 清空文件选择
+                    fileInput.value = '';
+                } else {
+                    showAlert('验证失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('验证失败: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+        // 查询知识库表单处理
+        document.getElementById('queryForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            if (!systemInitialized) {
+                showAlert('请先初始化系统', 'error');
+                return;
+            }
+
+            const queryText = document.getElementById('queryText').value.trim();
+            if (!queryText) {
+                showAlert('请输入查询内容', 'error');
+                return;
+            }
+
+            const requestData = {
+                query_text: queryText,
+                n_results: parseInt(document.getElementById('nResults').value),
+                sim_thresh: parseFloat(document.getElementById('querySimThresh').value)
+            };
+
+            showLoading('正在查询知识库...');
+            
+            try {
+                const response = await axios.post('/api/query_knowledge_base', requestData);
+
+                if (response.data.success) {
+                    const results = response.data.results;
+                    let content = `<h4>查询结果 (查询: "${response.data.query}")</h4>`;
+                    
+                    if (results.length === 0) {
+                        content += '<div class="result-item warning">未找到相关文献</div>';
+                    } else {
+                        results.forEach((result, index) => {
+                            content += `
+                                <div class="result-item success">
+                                    <strong>结果 ${index + 1}</strong><br>
+                                    <strong>论文:</strong> ${result.paper_title || '未知标题'}<br>
+                                    <strong>相似度:</strong> ${result.similarity_score ? result.similarity_score.toFixed(3) : 'N/A'}<br>
+                                    <strong>内容片段:</strong><br>
+                                    <div style="background: #f8f9fa; padding: 10px; border-radius: 5px; margin-top: 5px; font-size: 0.9em;">
+                                        ${result.content || '无内容'}
+                                    </div>
+                                </div>
+                            `;
+                        });
+                    }
+                    
+                    showResults('知识库查询完成', `找到 ${results.length} 条相关结果`, content);
+                } else {
+                    showAlert('查询失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('查询失败: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        });
+
+        // 更新知识库
+        async function updateKnowledgeBase() {
+            if (!systemInitialized) {
+                showAlert('请先初始化系统', 'error');
+                return;
+            }
+
+            showLoading('正在更新知识库...');
+            
+            try {
+                const response = await axios.post('/api/update_knowledge_base');
+
+                if (response.data.success) {
+                    showAlert('知识库更新成功！', 'success');
+                    showResults('知识库更新完成', '索引已重建', '<div class="result-item success">RAG 知识库已成功更新</div>');
+                } else {
+                    showAlert('更新失败: ' + response.data.error, 'error');
+                }
+            } catch (error) {
+                showAlert('更新失败: ' + error.message, 'error');
+            } finally {
+                hideLoading();
+            }
+        }
+
+        // 文件拖拽功能
+        function setupDragAndDrop() {
+            const fileUploadLabels = document.querySelectorAll('.file-upload-label');
+            
+            fileUploadLabels.forEach(label => {
+                label.addEventListener('dragover', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#5a6fd8';
+                    this.style.background = '#f0f2ff';
+                });
+                
+                label.addEventListener('dragleave', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#667eea';
+                    this.style.background = '#f8f9ff';
+                });
+                
+                label.addEventListener('drop', function(e) {
+                    e.preventDefault();
+                    this.style.borderColor = '#667eea';
+                    this.style.background = '#f8f9ff';
+                    
+                    const files = e.dataTransfer.files;
+                    const input = this.parentElement.querySelector('input[type=file]');
+                    input.files = files;
+                    
+                    // 更新显示
+                    if (files.length > 0) {
+                        const fileNames = Array.from(files).map(f => f.name).join(', ');
+                        this.querySelector('div').textContent = `已选择: ${fileNames}`;
+                    }
+                });
+            });
+        }
+
+        // 页面加载完成后初始化
+        document.addEventListener('DOMContentLoaded', function() {
+            checkStatus();
+            setupDragAndDrop();
+            
+            // 定期检查状态
+            setInterval(checkStatus, 30000); // 每30秒检查一次
+        });
+    </script>
+</body>
+</html>
